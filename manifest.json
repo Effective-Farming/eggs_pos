@@ -1,0 +1,16 @@
+{
+  "name": "Egg Counter",
+  "short_name": "Egg Counter",
+  "description": "Fast egg & tray sales counter with paper-rate pricing, UPI QR, and end-of-day export.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f3e9d8",
+  "theme_color": "#e2960e",
+  "icons": [
+    { "src": "icon-192.png", "type": "image/png", "sizes": "192x192", "purpose": "any" },
+    { "src": "icon-512.png", "type": "image/png", "sizes": "512x512", "purpose": "any maskable" },
+    { "src": "icon.svg", "type": "image/svg+xml", "sizes": "any", "purpose": "any maskable" }
+  ]
+}

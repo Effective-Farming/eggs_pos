@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+<title>Egg Counter</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#e2960e">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Egg Counter">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#f3e9d8; --surface:#fffaf1; --surface-2:#fbf3e4;
+    --ink:#231a12; --muted:#7a6a55; --line:rgba(60,40,20,.13);
+    --accent:#e2960e; --accent-deep:#c47a04; --accent-soft:#fbe6bd;
+    --green:#2f6b3f; --danger:#bb3b2b;
+    --sat:env(safe-area-inset-top,0px); --sab:env(safe-area-inset-bottom,0px);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--ink);overscroll-behavior:none;
+    background-image:radial-gradient(circle at 10% 4%, rgba(226,150,14,.10), transparent 36%),radial-gradient(circle at 92% 96%, rgba(47,107,63,.06), transparent 40%);}
+  .mono{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;}
+  .app{max-width:480px;margin:0 auto;height:100%;display:flex;flex-direction:column;position:relative;overflow:hidden;}
+  svg.ic{width:1em;height:1em;display:block;}
+
+  header{padding:calc(var(--sat) + 12px) 16px 10px;}
+  .toprow{display:flex;align-items:center;gap:10px;}
+  .brand{display:flex;align-items:center;gap:9px;}
+  .egg{width:20px;height:26px;background:linear-gradient(160deg,#fff,#f5d57a);border-radius:50% 50% 50% 50%/62% 62% 38% 38%;box-shadow:inset -3px -4px 6px rgba(196,122,4,.25);}
+  .brand h1{font-family:'Fraunces',serif;font-weight:600;font-size:1.35rem;letter-spacing:-.01em;}
+  .brand .date{font-size:.66rem;color:var(--muted);}
+  .hbtns{margin-left:auto;display:flex;gap:8px;}
+  .icon-btn{border:1px solid var(--line);background:var(--surface);width:42px;height:42px;border-radius:12px;cursor:pointer;font-size:1.15rem;display:grid;place-items:center;color:var(--muted);}
+  .icon-btn:active{transform:scale(.94);}
+  .paperchip{margin-top:11px;width:100%;display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:11px 14px;cursor:pointer;box-shadow:0 6px 18px -12px rgba(60,40,20,.5);}
+  .paperchip .lab{font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);}
+  .paperchip .val{margin-left:auto;font-family:'IBM Plex Mono';font-weight:600;font-size:1.25rem;color:var(--accent-deep);}
+  .paperchip .ed{color:var(--muted);font-size:.8rem;}
+  .paperchip.empty{border-color:var(--accent);animation:pulse 1.6s infinite;}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(226,150,14,.4);}50%{box-shadow:0 0 0 5px rgba(226,150,14,0);}}
+
+  .ledger{flex:1;overflow-y:auto;padding:12px 16px 130px;}
+  .empty{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--muted);text-align:center;padding:30px;}
+  .empty .big{font-size:2.4rem;opacity:.5;}
+  .row{background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:12px 14px;margin-bottom:9px;display:flex;align-items:center;gap:12px;cursor:pointer;animation:rin .28s ease;}
+  @keyframes rin{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+  .row .ico{flex:0 0 auto;width:40px;height:40px;border-radius:10px;background:var(--accent-soft);color:var(--accent-deep);display:grid;place-items:center;font-size:1.25rem;}
+  .row .info{flex:1;min-width:0;}
+  .row .info .nm{font-weight:600;}
+  .row .info .sub{font-size:.73rem;color:var(--muted);font-family:'IBM Plex Mono';}
+  .row .amt{font-family:'IBM Plex Mono';font-weight:600;font-size:1.05rem;text-align:right;}
+
+  .totalbar{position:absolute;left:0;right:0;bottom:0;padding:14px 16px calc(var(--sab) + 14px);background:linear-gradient(0deg, var(--bg) 70%, transparent);pointer-events:none;}
+  .total-inner{pointer-events:auto;background:var(--ink);color:#fff;border-radius:16px;padding:14px 18px;display:flex;align-items:center;box-shadow:0 14px 30px -14px rgba(0,0,0,.6);}
+  .total-inner small{font-size:.64rem;letter-spacing:.14em;text-transform:uppercase;color:#cdbfa9;display:block;}
+  .total-inner .cnt{font-size:.82rem;color:#e9dcc4;}
+  .total-inner .gt{margin-left:auto;font-family:'Fraunces',serif;font-weight:600;font-size:2rem;line-height:1;}
+
+  .fab{position:absolute;right:18px;bottom:calc(var(--sab) + 92px);width:62px;height:62px;border-radius:20px;border:none;background:var(--accent);color:#3a2604;font-size:2.1rem;font-weight:300;line-height:1;cursor:pointer;z-index:20;box-shadow:0 12px 26px -8px var(--accent-deep);display:grid;place-items:center;}
+  .fab:active{transform:scale(.92);}
+
+  .scrim{position:fixed;inset:0;background:rgba(35,26,18,.45);backdrop-filter:blur(2px);opacity:0;pointer-events:none;transition:opacity .25s;z-index:30;}
+  .scrim.on{opacity:1;pointer-events:auto;}
+  .sheet{position:fixed;left:0;right:0;bottom:0;max-width:480px;margin:0 auto;background:var(--surface);border-radius:22px 22px 0 0;transform:translateY(100%);transition:transform .3s cubic-bezier(.3,.9,.3,1);z-index:40;padding:10px 18px calc(var(--sab) + 18px);max-height:92vh;overflow-y:auto;box-shadow:0 -16px 40px -16px rgba(0,0,0,.4);}
+  .sheet.on{transform:translateY(0);}
+  .grab{width:42px;height:5px;border-radius:3px;background:var(--line);margin:6px auto 14px;}
+  .sheet h2{font-family:'Fraunces',serif;font-weight:600;font-size:1.25rem;margin-bottom:3px;}
+  .sheet .sub{color:var(--muted);font-size:.8rem;margin-bottom:14px;}
+
+  .types{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .type{border:1px solid var(--line);background:var(--surface-2);border-radius:14px;padding:13px 14px;cursor:pointer;text-align:left;}
+  .type:active{transform:scale(.97);}
+  .type .top{display:flex;align-items:center;gap:8px;}
+  .type .top .ti{width:30px;height:30px;border-radius:8px;background:var(--accent-soft);color:var(--accent-deep);display:grid;place-items:center;font-size:1.05rem;flex:0 0 auto;}
+  .type .nm{font-weight:600;font-size:1rem;}
+  .type .meta{font-family:'IBM Plex Mono';font-size:.72rem;color:var(--muted);margin-top:7px;}
+  .sec-lbl{font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:14px 2px 8px;}
+
+  .pill{display:flex;align-items:center;gap:12px;background:var(--accent-soft);border-radius:14px;padding:12px 14px;margin-bottom:12px;animation:rin .25s;}
+  .pill .pi{width:36px;height:36px;border-radius:9px;background:#fff;color:var(--accent-deep);display:grid;place-items:center;font-size:1.2rem;flex:0 0 auto;}
+  .pill .nm{font-weight:600;font-size:1.05rem;}
+  .pill .meta{font-family:'IBM Plex Mono';font-size:.74rem;color:var(--accent-deep);}
+  .pill .chg{margin-left:auto;border:1px solid var(--accent-deep);color:var(--accent-deep);background:none;border-radius:9px;padding:6px 10px;font-size:.72rem;cursor:pointer;}
+  .unit-toggle{display:flex;gap:8px;margin-bottom:12px;}
+  .unit-toggle button{flex:1;border:1px solid var(--line);background:var(--surface-2);border-radius:11px;padding:11px;font-weight:600;font-size:.9rem;cursor:pointer;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:7px;}
+  .unit-toggle button.on{background:var(--accent);color:#3a2604;border-color:var(--accent);}
+  .qt-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:4px 0 12px;}
+  .qt-cell{border:1px solid var(--line);background:var(--surface-2);border-radius:13px;padding:12px 8px;text-align:center;cursor:pointer;display:flex;flex-direction:column;gap:2px;}
+  .qt-cell.on{border-color:var(--accent);box-shadow:0 0 0 2px rgba(226,150,14,.25);}
+  .qt-cell .lab{font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);}
+  .qt-cell .v{font-family:'IBM Plex Mono';font-size:2.4rem;font-weight:600;line-height:1.05;}
+  .qt-cell .exp{font-family:'IBM Plex Mono';font-size:.66rem;color:var(--muted);min-height:1em;}
+  .pad{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;}
+  .pad button{border:1px solid var(--line);background:var(--surface-2);border-radius:13px;padding:15px;font-family:'IBM Plex Mono';font-size:1.5rem;font-weight:500;cursor:pointer;}
+  .pad button:active{background:var(--accent-soft);}
+  .pad .ok{background:var(--accent);color:#3a2604;border-color:var(--accent);font-family:'IBM Plex Sans';font-size:1.05rem;font-weight:700;}
+  .pad .bk{color:var(--danger);}
+
+  .field{margin-bottom:13px;}
+  .field label{display:block;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;}
+  .field input{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px 12px;font-size:.95rem;background:var(--surface-2);color:var(--ink);font-family:'IBM Plex Sans';}
+  .field input:focus{outline:2px solid var(--accent);border-color:transparent;}
+  .field .big-in{font-family:'IBM Plex Mono';font-size:1.6rem;font-weight:600;color:var(--accent-deep);text-align:center;}
+
+  .pv{display:grid;grid-template-columns:26px 1fr auto auto;gap:10px;align-items:center;padding:9px 2px;border-bottom:1px solid var(--line);}
+  .pv .pvi{color:var(--accent-deep);font-size:1.05rem;display:grid;place-items:center;}
+  .pv .pvn{font-weight:500;font-size:.92rem;}
+  .pv .pvr{font-family:'IBM Plex Mono';font-size:.82rem;color:var(--accent-deep);font-weight:600;text-align:right;}
+  .pv .pvu{font-family:'IBM Plex Mono';font-size:.72rem;color:var(--muted);text-align:right;min-width:88px;}
+  .tierline{display:flex;justify-content:space-between;font-family:'IBM Plex Mono';font-size:.74rem;color:var(--muted);padding:3px 0;}
+  .tierline b{color:var(--accent-deep);}
+
+  .btn{border:none;border-radius:13px;padding:15px;font-family:'IBM Plex Sans';font-weight:600;font-size:1rem;cursor:pointer;}
+  .btn-primary{background:var(--accent);color:#3a2604;}
+  .btn-ghost{background:var(--surface-2);color:var(--muted);border:1px solid var(--line);}
+  .btn-row{display:flex;gap:10px;margin-top:16px;}
+  .btn-row .btn{flex:1;}
+
+  .extable{border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:14px;}
+  .ex-h,.ex-r{display:grid;grid-template-columns:1.4fr .7fr .8fr .9fr 26px;gap:6px;align-items:center;padding:8px 10px;font-size:.82rem;}
+  .ex-h{background:var(--surface-2);font-size:.6rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);}
+  .ex-r{border-top:1px solid var(--line);}
+  .ex-r select,.ex-r input{border:1px solid var(--line);border-radius:7px;padding:6px;font-size:.82rem;background:var(--surface);width:100%;font-family:'IBM Plex Mono';}
+  .ex-r select{font-family:'IBM Plex Sans';}
+  .ex-r .amt{font-family:'IBM Plex Mono';font-weight:600;text-align:right;}
+  .ex-r .del{border:none;background:none;color:var(--danger);font-size:1rem;cursor:pointer;}
+  .ex-tot{display:flex;justify-content:space-between;font-weight:600;padding:10px 12px;border-top:2px solid var(--ink);}
+  .ex-tot .mono{font-family:'IBM Plex Mono';}
+  .exp-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .exp-btns .btn{display:flex;flex-direction:column;align-items:center;gap:3px;padding:14px;}
+  .exp-btns .btn .ic{font-size:1.3rem;}
+  .exp-btns .wide{grid-column:span 2;}
+
+  .pay-amt{text-align:center;font-family:'Fraunces',serif;font-weight:700;font-size:2.6rem;color:var(--accent-deep);}
+  .pay-to{text-align:center;color:var(--muted);font-size:.82rem;margin-bottom:14px;}
+  #qrbox{display:grid;place-items:center;padding:16px;background:#fff;border-radius:14px;border:1px solid var(--line);margin:0 auto 6px;width:fit-content;}
+  .qr-fallback{font-family:'IBM Plex Mono';font-size:.68rem;word-break:break-all;color:var(--muted);max-width:240px;}
+  .note{font-size:.72rem;color:var(--muted);line-height:1.45;background:var(--surface-2);padding:10px 12px;border-radius:9px;margin-top:10px;}
+  .actsheet button{width:100%;text-align:left;border:none;background:var(--surface-2);border-radius:12px;padding:15px 16px;font-size:1rem;margin-bottom:8px;cursor:pointer;display:flex;gap:12px;align-items:center;color:var(--ink);}
+  .actsheet button.danger{color:var(--danger);}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="toprow">
+      <div class="brand"><div class="egg"></div><div><h1>Egg Counter</h1><div class="date" id="dateLbl"></div></div></div>
+      <div class="hbtns">
+        <button class="icon-btn" id="exportBtn" title="Export day">⬆</button>
+        <button class="icon-btn" id="setBtn" title="Settings">⚙</button>
+      </div>
+    </div>
+    <button class="paperchip" id="paperChip">
+      <span class="lab">Paper rate<br>(per 100 eggs)</span>
+      <span class="val mono" id="paperVal">—</span>
+      <span class="ed">edit ✎</span>
+    </button>
+  </header>
+
+  <div class="ledger" id="ledger"></div>
+
+  <div class="totalbar"><div class="total-inner">
+    <div><small>Day total</small><span class="cnt" id="dayCount">0 entries</span></div>
+    <div class="gt mono" id="dayTotal">₹0</div>
+  </div></div>
+
+  <button class="fab" id="fab">+</button>
+</div>
+
+<div class="scrim" id="scrim"></div>
+
+<!-- ADD -->
+<div class="sheet" id="addSheet">
+  <div class="grab"></div>
+  <div id="addType">
+    <h2>Add a sale</h2>
+    <div class="sub">Pick a category</div>
+    <div id="typeSections"></div>
+  </div>
+  <div id="addQty" style="display:none;">
+    <div class="pill">
+      <span class="pi" id="pillIcon"></span>
+      <div><div class="nm" id="pillName"></div><div class="meta" id="pillMeta"></div></div>
+      <button class="chg" id="pillChange">change</button>
+    </div>
+    <div class="unit-toggle" id="unitToggle" style="display:none;">
+      <button data-u="tray" class="on"><span id="utTray"></span> By tray</button>
+      <button data-u="egg"><span id="utEgg"></span> By egg</button>
+    </div>
+    <div class="qt-grid">
+      <button class="qt-cell on" id="cellQty" data-t="qty"><span class="lab" id="qtyLab">Qty</span><span class="v" id="qtyDisp">0</span><span class="exp">&nbsp;</span></button>
+      <button class="qt-cell" id="cellTotal" data-t="total"><span class="lab">Total ₹</span><span class="v" id="totalDisp">0</span><span class="exp" id="totalExp">&nbsp;</span></button>
+    </div>
+    <div class="pad" id="pad">
+      <button data-d="1">1</button><button data-d="2">2</button><button data-d="3">3</button>
+      <button data-d="4">4</button><button data-d="5">5</button><button data-d="6">6</button>
+      <button data-d="7">7</button><button data-d="8">8</button><button data-d="9">9</button>
+      <button class="bk" data-act="back">⌫</button><button data-d="0">0</button><button class="ok" data-act="ok">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- ROW actions -->
+<div class="sheet actsheet" id="actSheet">
+  <div class="grab"></div>
+  <h2 id="actTitle">Entry</h2>
+  <div class="sub" id="actSub"></div>
+  <button id="actEdit">✎ &nbsp;Edit quantity</button>
+  <button id="actQR">▦ &nbsp;Show payment QR</button>
+  <button class="danger" id="actDelete">🗑 &nbsp;Delete entry</button>
+</div>
+
+<!-- SETTINGS : only paper rate is editable -->
+<div class="sheet" id="setSheet">
+  <div class="grab"></div>
+  <h2>Settings</h2>
+  <div class="sub">Only the paper rate is adjustable. All other prices are calculated.</div>
+  <div class="field"><label>Paper rate — per 100 eggs (₹)</label><input id="sPaper" class="big-in" type="number" inputmode="decimal" step="1" placeholder="500"></div>
+  <div class="sec-lbl">Calculated prices</div>
+  <div id="catView"></div>
+  <div class="sec-lbl">Tray price tiers</div>
+  <div id="tierView"></div>
+  <div class="btn-row">
+    <button class="btn btn-ghost" id="setCancel">Cancel</button>
+    <button class="btn btn-primary" id="setSave">Save</button>
+  </div>
+</div>
+
+<!-- EXPORT -->
+<div class="sheet" id="expSheet">
+  <div class="grab"></div>
+  <h2>End-of-day export</h2>
+  <div class="sub" id="expDate"></div>
+  <div class="extable" id="exTable"></div>
+  <button class="btn btn-ghost" id="exAddRow" style="width:100%;margin-bottom:14px;">+ Add row</button>
+  <div class="exp-btns">
+    <button class="btn btn-ghost" id="expPNG"><span class="ic">🖼</span>Save PNG</button>
+    <button class="btn btn-ghost" id="expPDF"><span class="ic">📄</span>Save PDF</button>
+    <button class="btn btn-primary wide" id="expJSON"><span class="ic">📤</span>Send / share JSON</button>
+  </div>
+  <div class="note">Edits here change the exported figures. The JSON keeps both originally-entered and final values.</div>
+</div>
+
+<!-- QR -->
+<div class="sheet" id="qrSheet">
+  <div class="grab"></div>
+  <h2>Scan to pay</h2>
+  <div class="sub">UPI · GPay / PhonePe / Paytm</div>
+  <div class="pay-amt mono" id="qrAmt">₹0</div>
+  <div class="pay-to" id="qrTo"></div>
+  <div id="qrbox"></div>
+  <div class="note">The amount is encoded in the QR — the customer just scans and confirms.</div>
+  <div class="btn-row"><button class="btn btn-primary" id="qrClose" style="flex:1;">Done</button></div>
+</div>
+
+<script>
+/* ============================================================
+   HARD-CODED MERCHANT DETAILS — change these to your actuals
+   ============================================================ */
+const PAYEE = 'Mulpuri Poultry';        // company name shown on QR + receipts
+const VPA   = 'merchant@okaxis';        // your UPI ID / VPA
+/* ============================================================ */
+
+const $=s=>document.querySelector(s);
+const fmt=n=>'₹'+Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:2});
+const uid=()=>Math.random().toString(36).slice(2,9);
+const dstr=()=>new Date().toISOString().slice(0,10);
+const dayKey=()=>'pos-day-'+dstr();
+const ICON={
+  egg:'<svg class="ic" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.2c3.4 0 6.2 5.2 6.2 9.4a6.2 6.2 0 1 1-12.4 0C5.8 7.4 8.6 2.2 12 2.2Z"/></svg>',
+  tray:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2.2" y="6.5" width="19.6" height="11" rx="2.6"/><circle cx="7" cy="10" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="10" r="1.5" fill="currentColor" stroke="none"/><circle cx="17" cy="10" r="1.5" fill="currentColor" stroke="none"/><circle cx="7" cy="14" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="14" r="1.5" fill="currentColor" stroke="none"/><circle cx="17" cy="14" r="1.5" fill="currentColor" stroke="none"/></svg>'
+};
+const ico=k=>ICON[k]||ICON.egg;
+
+/* portable storage */
+const Store={
+  async get(k){ if(window.storage){try{const r=await window.storage.get(k);return r&&r.value!=null?r.value:null;}catch(e){}} try{return localStorage.getItem(k);}catch(e){return null;} },
+  async set(k,v){ if(window.storage){try{await window.storage.set(k,v);return;}catch(e){}} try{localStorage.setItem(k,v);}catch(e){} }
+};
+
+/* ============================================================
+   FIXED PRICING RULES (not user-editable)
+   per-egg rate = paper100/100, then category rule applies
+   ============================================================ */
+const TIERS=[ {min:250,off:-0.15},{min:200,off:-0.12},{min:100,off:-0.10},{min:50,off:-0.08},{min:3,off:0.10},{min:1,off:0.25} ];
+const CATS=[
+  {id:'tray', name:'Tray',         icon:'tray',eggs:30,kind:'tray',  group:'Eggs'},
+  {id:'egg',  name:'Single Egg',   icon:'egg', eggs:1, kind:'offset',off:0.30,group:'Eggs'},
+  {id:'doz',  name:'Dozen',        icon:'egg', eggs:12,kind:'offset',off:0.30,group:'Eggs'},
+  {id:'half', name:'Half Dozen',   icon:'egg', eggs:6, kind:'offset',off:0.30,group:'Eggs'},
+  {id:'dust', name:'Dust & Small', icon:'tray',eggs:30,kind:'offset',off:-1.00,both:true,group:'Dust / Damage / Pullets'},
+  {id:'pulA', name:'Pullet A (<45g)',icon:'tray',eggs:30,kind:'fixed',rate:3.00,both:true,group:'Dust / Damage / Pullets'},
+  {id:'pulB', name:'Pullet B',     icon:'tray',eggs:30,kind:'fixed',rate:3.30,both:true,group:'Dust / Damage / Pullets'},
+  {id:'ldmg', name:'Light Damage', icon:'tray',eggs:30,kind:'fixed',rate:2.50,both:true,group:'Dust / Damage / Pullets'},
+  {id:'dmg',  name:'Damage',       icon:'tray',eggs:30,kind:'fixed',rate:2.00,both:true,group:'Dust / Damage / Pullets'},
+];
+const catById=id=>CATS.find(c=>c.id===id);
+
+let settings={ paper100:0 };   // the ONLY persisted, editable value
+let day=[];
+let qtyStr='', totalStr='', totalManual=false, padTarget='qty', selCat=null, unitMode='tray', editingId=null, actId=null;
+
+const perEgg100=()=>(settings.paper100||0)/100;
+function perEgg(cat,qtyTrays,paperOverride){
+  if(!cat) return 0;
+  if(cat.kind==='fixed') return cat.rate||0;
+  const p = paperOverride!=null ? paperOverride/100 : perEgg100();
+  if(cat.kind==='offset') return p+(cat.off||0);
+  if(cat.kind==='tray'){ const t=TIERS.find(t=>(qtyTrays||0)>=t.min); return p+(t?t.off:0); }
+  return p;
+}
+function catOf(e){ return catById(e.catId); }
+function effRate(e){ if(e.amountOv!=null && e.eggs*e.qty>0) return e.amountOv/(e.eggs*e.qty); if(e.rateOv!=null) return e.rateOv; const c=catOf(e); return c?perEgg(c,e.qty):(e.enteredRate||0); }
+const lineAmt=e=> e.amountOv!=null ? e.amountOv : effRate(e)*e.eggs*e.qty;
+
+/* ---- persistence + migration (only paper rate is kept) ---- */
+async function load(){
+  const legacy=await Store.get('pos-settings');
+  if(legacy){ try{ const s=JSON.parse(legacy);
+      if(typeof s.paper100==='number') settings.paper100=s.paper100;
+      else if(typeof s.rate==='number') settings.paper100=Math.round(s.rate*100);
+  }catch(e){} }
+  const d=await Store.get(dayKey()); if(d){try{day=JSON.parse(d);}catch(e){}}
+}
+async function saveSettings(){ await Store.set('pos-settings',JSON.stringify({paper100:settings.paper100})); }
+async function saveDay(){ await Store.set(dayKey(),JSON.stringify(day)); }
+
+/* ---- render main ---- */
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function renderPaper(){ $('#paperVal').textContent=settings.paper100?'₹'+settings.paper100:'—'; $('#paperChip').classList.toggle('empty',!settings.paper100); }
+function unitName(eggs){ return eggs===1?'egg':eggs===30?'tray':'unit'; }
+function renderLedger(){
+  const c=$('#ledger');
+  if(!day.length){ c.innerHTML='<div class="empty"><div class="big">＋</div><div>No sales yet today.<br>Tap the + button to add one.</div></div>'; }
+  else{ c.innerHTML='';
+    day.forEach(e=>{ const r=document.createElement('div'); r.className='row'; r.dataset.id=e.id;
+      const u=unitName(e.eggs);
+      r.innerHTML=`<div class="ico">${ico(e.icon)}</div>
+        <div class="info"><div class="nm">${esc(e.name)}</div>
+        <div class="sub">${e.qty} ${u}${e.qty>1?'s':''} · ${fmt(effRate(e))}/egg${e.amountOv!=null?' · manual':''}</div></div>
+        <div class="amt mono">${fmt(lineAmt(e))}</div>`;
+      r.onclick=()=>openAct(e.id); c.appendChild(r); });
+  }
+  const total=day.reduce((s,e)=>s+lineAmt(e),0);
+  $('#dayTotal').textContent=fmt(total);
+  $('#dayCount').textContent=day.length+(day.length===1?' entry':' entries');
+}
+
+/* ---- add flow ---- */
+function unitPreview(cat){
+  if(!settings.paper100 && cat.kind!=='fixed') return 'set paper rate';
+  if(cat.kind==='tray') return 'tiered · '+fmt(perEgg(cat,250))+'–'+fmt(perEgg(cat,1))+'/egg';
+  const r=perEgg(cat,1); return fmt(r)+'/egg'+(cat.eggs>1?' · '+fmt(r*cat.eggs)+'/unit':'');
+}
+function openAdd(){ editingId=null; selCat=null; qtyStr=''; unitMode='tray';
+  $('#addType').style.display='block'; $('#addQty').style.display='none'; renderTypeSections(); openSheet('addSheet'); }
+function renderTypeSections(){
+  const wrap=$('#typeSections'); wrap.innerHTML='';
+  [...new Set(CATS.map(c=>c.group))].forEach(g=>{
+    wrap.insertAdjacentHTML('beforeend',`<div class="sec-lbl">${esc(g)}</div>`);
+    const grid=document.createElement('div'); grid.className='types';
+    CATS.filter(c=>c.group===g).forEach(c=>{
+      const b=document.createElement('button'); b.className='type';
+      b.innerHTML=`<div class="top"><span class="ti">${ico(c.icon)}</span><span class="nm">${esc(c.name)}</span></div>
+        <div class="meta">${unitPreview(c)}${c.both?' · egg/tray':''}</div>`;
+      b.onclick=()=>pickCat(c.id); grid.appendChild(b);
+    });
+    wrap.appendChild(grid);
+  });
+}
+function pickCat(id){
+  selCat=catById(id); if(!selCat) return;
+  unitMode = selCat.both ? 'tray' : (selCat.eggs===1?'egg':'unit');
+  if(!editingId){ qtyStr=''; } totalStr=''; totalManual=false; padTarget='qty';
+  $('#addType').style.display='none'; $('#addQty').style.display='block';
+  $('#pillIcon').innerHTML=ico(selCat.icon); $('#pillName').textContent=selCat.name;
+  $('#utTray').innerHTML=ico('tray'); $('#utEgg').innerHTML=ico('egg');
+  const ut=$('#unitToggle');
+  if(selCat.both){ ut.style.display='flex'; ut.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.u===unitMode)); }
+  else ut.style.display='none';
+  renderQty();
+}
+function curEggs(){ return selCat.both ? (unitMode==='tray'?30:1) : selCat.eggs; }
+function renderQty(){
+  const q=parseInt(qtyStr||'0',10), eggs=curEggs(), un=unitName(eggs);
+  $('#qtyLab').textContent='Qty · '+un+'s';
+  $('#qtyDisp').textContent=qtyStr||'0';
+  const r=perEgg(selCat, eggs===30?q:1), expected=r*eggs*q;
+  $('#pillMeta').textContent = (settings.paper100||selCat.kind==='fixed') ? fmt(r)+'/egg · '+fmt(r*eggs)+'/'+un : 'set paper rate in ⚙';
+  if(totalManual){ $('#totalDisp').textContent=totalStr||'0'; $('#totalExp').textContent = q? 'expected '+fmt(expected) : '\u00a0'; }
+  else { $('#totalDisp').textContent = q? fmt(expected).replace('₹','') : '0'; $('#totalExp').textContent='\u00a0'; }
+  $('#cellQty').classList.toggle('on',padTarget==='qty');
+  $('#cellTotal').classList.toggle('on',padTarget==='total');
+}
+function padPress(d){
+  if(padTarget==='total'){ if(!totalManual){ totalManual=true; totalStr=''; } if(totalStr.length<7) totalStr=(totalStr+d).replace(/^0+(?=\d)/,''); }
+  else { if(qtyStr.length<5) qtyStr=(qtyStr+d).replace(/^0+(?=\d)/,''); }
+  renderQty();
+}
+function padBack(){
+  if(padTarget==='total'){ totalStr=totalStr.slice(0,-1); if(totalStr==='') totalManual=false; }
+  else qtyStr=qtyStr.slice(0,-1);
+  renderQty();
+}
+function confirmQty(){
+  const q=parseInt(qtyStr||'0',10); if(!q){ closeSheet(); return; }
+  const eggs=curEggs();
+  const amtOv=(totalManual && totalStr!=='') ? parseFloat(totalStr) : null;
+  if(editingId){ const e=day.find(x=>x.id===editingId); if(e){ e.qty=q; e.eggs=eggs; e.amountOv=amtOv; } editingId=null; }
+  else{ const r=perEgg(selCat, eggs===30?q:1);
+    day.push({id:uid(),catId:selCat.id,name:selCat.name,icon:selCat.icon,eggs,qty:q,rateOv:null,amountOv:amtOv,enteredQty:q,enteredRate:r,t:Date.now()}); }
+  saveDay(); renderLedger(); closeSheet();
+}
+
+/* ---- row actions ---- */
+function openAct(id){ actId=id; const e=day.find(x=>x.id===id); if(!e) return;
+  $('#actTitle').textContent=e.name; $('#actSub').textContent=`${e.qty} ${unitName(e.eggs)} · ${fmt(lineAmt(e))}`; openSheet('actSheet'); }
+function editEntry(){ const e=day.find(x=>x.id===actId); if(!e) return;
+  editingId=e.id; selCat=catOf(e)||{id:e.catId,name:e.name,icon:e.icon,eggs:e.eggs,kind:'fixed',rate:e.enteredRate};
+  unitMode = e.eggs===1?'egg':'tray'; qtyStr=String(e.qty);
+  totalManual = e.amountOv!=null; totalStr = e.amountOv!=null ? String(e.amountOv) : ''; padTarget='qty';
+  $('#addType').style.display='none'; $('#addQty').style.display='block';
+  $('#pillIcon').innerHTML=ico(e.icon); $('#pillName').textContent=e.name;
+  $('#unitToggle').style.display='none'; renderQty(); openSheet('addSheet'); }
+function deleteEntry(){ day=day.filter(x=>x.id!==actId); saveDay(); renderLedger(); closeSheet(); }
+function entryQR(){ const e=day.find(x=>x.id===actId); if(e) showQR(lineAmt(e)); }
+
+/* ---- payment QR (hard-coded payee/VPA) ---- */
+function showQR(amount){
+  $('#qrAmt').textContent=fmt(amount);
+  $('#qrTo').innerHTML=`to <b>${esc(PAYEE)}</b> · <span class="mono">${esc(VPA)}</span>`;
+  const uri=`upi://pay?pa=${encodeURIComponent(VPA)}&pn=${encodeURIComponent(PAYEE)}&am=${Number(amount).toFixed(2)}&cu=INR&tn=${encodeURIComponent('Eggs '+new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}))}`;
+  const box=$('#qrbox'); box.innerHTML='';
+  try{ new QRCode(box,{text:uri,width:220,height:220,correctLevel:QRCode.CorrectLevel.M}); }catch(e){ box.innerHTML='<div class="qr-fallback">'+esc(uri)+'</div>'; }
+  openSheet('qrSheet');
+}
+
+/* ---- settings : paper rate edit + read-only calculated prices ---- */
+function openSettings(){ $('#sPaper').value=settings.paper100||''; renderCatView(settings.paper100||0); openSheet('setSheet'); }
+function renderCatView(paper){
+  const c=$('#catView'); c.innerHTML='';
+  [...new Set(CATS.map(x=>x.group))].forEach(g=>{
+    c.insertAdjacentHTML('beforeend',`<div class="sec-lbl" style="margin-top:6px;">${esc(g)}</div>`);
+    CATS.filter(x=>x.group===g).forEach(cat=>{
+      let rateTxt, unitTxt;
+      if(cat.kind==='tray'){ rateTxt='tiered'; unitTxt='by tray count'; }
+      else { const r=perEgg(cat,1,paper); rateTxt=fmt(r)+'/egg'; unitTxt=cat.both?'egg or tray':fmt(r*cat.eggs)+'/'+unitName(cat.eggs); }
+      c.insertAdjacentHTML('beforeend',`<div class="pv"><span class="pvi">${ico(cat.icon)}</span><span class="pvn">${esc(cat.name)}</span><span class="pvr">${rateTxt}</span><span class="pvu">${unitTxt}</span></div>`);
+    });
+  });
+  const tv=$('#tierView'); tv.innerHTML='';
+  const labels={250:'250+ trays',200:'200–249',100:'100–199',50:'50–99',3:'3–49',1:'1–2'};
+  TIERS.forEach(t=>{ const r=(paper/100)+t.off; const sign=t.off>=0?'+':'−';
+    tv.insertAdjacentHTML('beforeend',`<div class="tierline"><span>${labels[t.min]||('≥'+t.min)} <span style="color:var(--muted)">(paper ${sign}${Math.abs(t.off*100)}p)</span></span><b>${paper?fmt(r)+'/egg':'—'}</b></div>`); });
+}
+async function saveSettingsUI(){ settings.paper100=parseFloat($('#sPaper').value)||0; await saveSettings(); renderPaper(); renderLedger(); closeSheet(); }
+
+/* ---- export ---- */
+function openExport(){ $('#expDate').textContent=new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'}); renderExTable(); openSheet('expSheet'); }
+function renderExTable(){
+  const c=$('#exTable');
+  let h=`<div class="ex-h"><span>Item</span><span>Qty</span><span>₹/egg</span><span>Amount</span><span></span></div>`;
+  day.forEach((e,i)=>{
+    const opts=CATS.map(t=>`<option value="${t.id}" ${t.id===e.catId?'selected':''}>${esc(t.name)}</option>`).join('');
+    h+=`<div class="ex-r" data-i="${i}"><select data-f="cat">${opts}</select>
+      <input data-f="qty" type="number" value="${e.qty}">
+      <input data-f="rate" type="number" step="0.05" value="${(+effRate(e)).toFixed(2)}">
+      <span class="amt">${fmt(lineAmt(e))}</span><button class="del">×</button></div>`;
+  });
+  c.innerHTML=h;
+  c.querySelectorAll('.ex-r').forEach(row=>{ const i=+row.dataset.i, e=day[i];
+    row.querySelector('[data-f="cat"]').onchange=ev=>{const t=catById(ev.target.value);if(t){e.catId=t.id;e.name=t.name;e.icon=t.icon;e.eggs=(e.eggs===1&&t.both)?1:t.eggs;e.rateOv=null;e.amountOv=null;}saveDay();renderExTable();renderLedger();};
+    row.querySelector('[data-f="qty"]').oninput=ev=>{e.qty=parseInt(ev.target.value)||0;e.amountOv=null;saveDay();refreshExAmt();renderLedger();};
+    row.querySelector('[data-f="rate"]').oninput=ev=>{e.rateOv=parseFloat(ev.target.value)||0;e.amountOv=null;saveDay();refreshExAmt();renderLedger();};
+    row.querySelector('.del').onclick=()=>{day.splice(i,1);saveDay();renderExTable();renderLedger();};
+  });
+  appendExTot(c);
+}
+function appendExTot(c){ const tot=day.reduce((s,e)=>s+lineAmt(e),0), eggs=day.reduce((s,e)=>s+e.qty*e.eggs,0);
+  c.insertAdjacentHTML('beforeend',`<div class="ex-tot"><span>${eggs} eggs · ${day.length} lines</span><span class="mono">${fmt(tot)}</span></div>`); }
+function refreshExAmt(){ document.querySelectorAll('#exTable .ex-r').forEach(row=>{ row.querySelector('.amt').textContent=fmt(lineAmt(day[+row.dataset.i])); });
+  const c=$('#exTable'); const old=c.querySelector('.ex-tot'); if(old) old.remove(); appendExTot(c); }
+function exAddRow(){ const t=CATS[0]; day.push({id:uid(),catId:t.id,name:t.name,icon:t.icon,eggs:t.eggs,qty:1,rateOv:null,enteredQty:0,enteredRate:perEgg(t,1),t:Date.now()}); saveDay(); renderExTable(); renderLedger(); }
+
+function receiptCanvas(){
+  const S=2,W=720,padX=34,rowH=44,head=200,colH=34,totH=120,foot=58;
+  const H=head+colH+Math.max(1,day.length)*rowH+totH+foot;
+  const cv=document.createElement('canvas'); cv.width=W*S; cv.height=H*S; const x=cv.getContext('2d'); x.scale(S,S);
+  x.fillStyle='#fffaf1'; x.fillRect(0,0,W,H); x.fillStyle='#e2960e'; x.fillRect(0,0,W,8);
+  x.fillStyle='#231a12'; x.font='600 30px Georgia, serif'; x.fillText(PAYEE,padX,58);
+  x.font='14px monospace'; x.fillStyle='#7a6a55'; x.fillText('EGG COUNTER · DAY SHEET',padX,82);
+  const dt=new Date(); x.font='15px monospace'; x.fillStyle='#231a12';
+  x.fillText(dt.toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short',year:'numeric'}),padX,118);
+  x.fillText('Paper rate: ₹'+(settings.paper100||0)+' / 100 eggs',padX,142);
+  x.strokeStyle='rgba(60,40,20,.2)'; x.beginPath(); x.moveTo(padX,head-18); x.lineTo(W-padX,head-18); x.stroke();
+  const cX={item:padX,qty:330,eggs:410,rate:500,amt:W-padX};
+  x.font='600 12px monospace'; x.fillStyle='#7a6a55';
+  x.fillText('ITEM',cX.item,head+6); x.fillText('QTY',cX.qty,head+6); x.fillText('EGGS',cX.eggs,head+6); x.fillText('₹/EGG',cX.rate,head+6);
+  x.textAlign='right'; x.fillText('AMOUNT',cX.amt,head+6); x.textAlign='left';
+  let y=head+colH+8; x.font='15px monospace';
+  if(!day.length){ x.fillStyle='#7a6a55'; x.fillText('No sales recorded.',padX,y+18); }
+  day.forEach((e,i)=>{ if(i%2){ x.fillStyle='#fbf3e4'; x.fillRect(padX-10,y-18,W-2*(padX-10),rowH); }
+    x.fillStyle='#231a12'; x.fillText((e.name||'').slice(0,22),cX.item,y+6);
+    x.fillText(e.qty+' '+(e.eggs===1?'eg':e.eggs===30?'tr':'u'),cX.qty,y+6);
+    x.fillText(String(e.qty*e.eggs),cX.eggs,y+6); x.fillText(Number(effRate(e)).toFixed(2),cX.rate,y+6);
+    x.textAlign='right'; x.font='600 15px monospace'; x.fillText(fmt(lineAmt(e)),cX.amt,y+6); x.textAlign='left'; x.font='15px monospace'; y+=rowH; });
+  y+=10; x.strokeStyle='#231a12'; x.lineWidth=2; x.beginPath(); x.moveTo(padX,y); x.lineTo(W-padX,y); x.stroke();
+  y+=34; const tot=day.reduce((s,e)=>s+lineAmt(e),0), eggs=day.reduce((s,e)=>s+e.qty*e.eggs,0), units=day.reduce((s,e)=>s+e.qty,0);
+  x.font='15px monospace'; x.fillStyle='#7a6a55'; x.fillText(`${units} units · ${eggs} eggs · ${day.length} lines`,padX,y);
+  x.textAlign='right'; x.fillStyle='#231a12'; x.font='600 28px Georgia, serif'; x.fillText('TOTAL  '+fmt(tot),W-padX,y+6); x.textAlign='left';
+  x.font='12px monospace'; x.fillStyle='#7a6a55'; x.fillText('Generated '+dt.toLocaleString('en-IN'),padX,H-26);
+  return cv;
+}
+function download(blob,name){ const u=URL.createObjectURL(blob),a=document.createElement('a'); a.href=u; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(u),2000); }
+function exportPNG(){ receiptCanvas().toBlob(b=>download(b,`egg-sales-${dstr()}.png`),'image/png'); }
+function exportPDF(){ try{ const cv=receiptCanvas(),{jsPDF}=window.jspdf; const w=cv.width/2,h=cv.height/2,pdf=new jsPDF({orientation:'p',unit:'pt',format:[w,h]});
+  pdf.addImage(cv.toDataURL('image/jpeg',0.95),'JPEG',0,0,w,h); pdf.save(`egg-sales-${dstr()}.pdf`); }
+  catch(e){ alert('PDF needs internet on first use (to load the engine). PNG works offline.'); } }
+function buildJSON(){
+  const entries=day.map(e=>({ item:e.name, eggs_per_unit:e.eggs, qty:e.qty, rate_per_egg:+effRate(e).toFixed(2), amount:+lineAmt(e).toFixed(2),
+    manual_total:e.amountOv!=null, expected_amount:+((e.enteredQty||0)*e.eggs*(e.enteredRate||0)).toFixed(2),
+    entered_qty:e.enteredQty, entered_rate:e.enteredRate, time:new Date(e.t).toISOString() }));
+  return { shop:PAYEE, date:dstr(), exported_at:new Date().toISOString(), paper_rate_per_100_eggs:settings.paper100, entries,
+    totals:{ units:day.reduce((s,e)=>s+e.qty,0), eggs:day.reduce((s,e)=>s+e.qty*e.eggs,0),
+      amount:+day.reduce((s,e)=>s+lineAmt(e),0).toFixed(2),
+      entered_amount:+day.reduce((s,e)=>s+(e.enteredQty||0)*e.eggs*(e.enteredRate||0),0).toFixed(2) } };
+}
+async function exportJSON(){
+  const str=JSON.stringify(buildJSON(),null,2);
+  const file=new File([str],`egg-sales-${dstr()}.json`,{type:'application/json'});
+  if(navigator.canShare && navigator.canShare({files:[file]})){ try{ await navigator.share({files:[file],title:'Egg sales '+dstr()}); return; }catch(e){ if(e.name==='AbortError') return; } }
+  if(navigator.share){ try{ await navigator.share({title:'Egg sales '+dstr(),text:str}); return; }catch(e){ if(e.name==='AbortError') return; } }
+  download(new Blob([str],{type:'application/json'}),file.name); try{ await navigator.clipboard.writeText(str); }catch(e){}
+}
+
+/* ---- sheets ---- */
+let openId=null;
+function openSheet(id){ if(openId&&openId!==id) $('#'+openId).classList.remove('on'); openId=id; $('#'+id).classList.add('on'); $('#scrim').classList.add('on'); }
+function closeSheet(){ if(openId) $('#'+openId).classList.remove('on'); openId=null; $('#scrim').classList.remove('on'); }
+
+/* ---- wire ---- */
+$('#fab').onclick=openAdd;
+$('#scrim').onclick=closeSheet;
+$('#paperChip').onclick=openSettings;
+$('#pillChange').onclick=()=>{ $('#addType').style.display='block'; $('#addQty').style.display='none'; renderTypeSections(); };
+$('#cellQty').onclick=()=>{ padTarget='qty'; renderQty(); };
+$('#cellTotal').onclick=()=>{ padTarget='total'; renderQty(); };
+$('#unitToggle').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b)return; unitMode=b.dataset.u;
+  $('#unitToggle').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); renderQty(); });
+$('#pad').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return; if(b.dataset.d!=null)padPress(b.dataset.d); else if(b.dataset.act==='back')padBack(); else if(b.dataset.act==='ok')confirmQty();});
+$('#setBtn').onclick=openSettings;
+$('#sPaper').oninput=e=>renderCatView(parseFloat(e.target.value)||0);
+$('#setCancel').onclick=closeSheet;
+$('#setSave').onclick=saveSettingsUI;
+$('#exportBtn').onclick=openExport;
+$('#exAddRow').onclick=exAddRow;
+$('#expPNG').onclick=exportPNG; $('#expPDF').onclick=exportPDF; $('#expJSON').onclick=exportJSON;
+$('#actEdit').onclick=editEntry; $('#actDelete').onclick=deleteEntry; $('#actQR').onclick=entryQR; $('#qrClose').onclick=closeSheet;
+
+document.addEventListener('keydown',e=>{
+  if(['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))return;
+  if(openId==='addSheet'){
+    if($('#addQty').style.display!=='none'){ if(/^[0-9]$/.test(e.key))padPress(e.key); else if(e.key==='Backspace'){e.preventDefault();padBack();} else if(e.key==='Enter')confirmQty(); else if(e.key==='Escape')closeSheet(); }
+    else if(e.key==='Escape')closeSheet();
+    return;
+  }
+  if(openId){ if(e.key==='Escape')closeSheet(); return; }
+  if(e.key==='+'||e.key==='Enter')openAdd();
+});
+
+/* ---- boot ---- */
+(async function(){
+  await load();
+  $('#dateLbl').textContent=new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'short'});
+  renderPaper(); renderLedger();
+})();
+if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{})); }
+</script>
+</body>
+</html>
