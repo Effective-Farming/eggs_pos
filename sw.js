@@ -1,5 +1,5 @@
 // Bump VERSION on every release so clients fetch the new files.
-const VERSION = '1.2.0';
+const VERSION = '1.2.1';
 const CACHE = 'eggcounter-v' + VERSION;
 const CORE = [
   './',
